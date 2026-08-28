@@ -1,0 +1,144 @@
+{
+    "name": "VuforiaSamples_Actions",
+    "maps": [
+        {
+            "name": "Vuforia",
+            "id": "e8fdae9e-e542-44c4-9051-18787be9c246",
+            "actions": [
+                {
+                    "name": "Tap",
+                    "type": "PassThrough",
+                    "id": "293bd234-02ec-491d-bfc8-236ebda8c36f",
+                    "expectedControlType": "Button",
+                    "processors": "",
+                    "interactions": "",
+                    "initialStateCheck": false
+                },
+                {
+                    "name": "DoubleTap",
+                    "type": "PassThrough",
+                    "id": "5a43640e-bb5b-4d34-b04d-6c6bb7fb7ac4",
+                    "expectedControlType": "Button",
+                    "processors": "",
+                    "interactions": "",
+                    "initialStateCheck": false
+                },
+                {
+                    "name": "Press",
+                    "type": "PassThrough",
+                    "id": "71797f43-4e40-42ff-9034-6df3701c2c12",
+                    "expectedControlType": "Button",
+                    "processors": "",
+                    "interactions": "",
+                    "initialStateCheck": false
+                },
+                {
+                    "name": "Point",
+                    "type": "PassThrough",
+                    "id": "4d1638b5-a133-401d-b11a-640016c394e3",
+                    "expectedControlType": "Vector2",
+                    "processors": "",
+                    "interactions": "",
+                    "initialStateCheck": false
+                }
+            ],
+            "bindings": [
+                {
+                    "name": "",
+                    "id": "19450fe3-2cf5-4a10-8bb1-25670ab3a37b",
+                    "path": "<Touchscreen>/Press",
+                    "interactions": "MultiTap",
+                    "processors": "",
+                    "groups": ";Touch",
+                    "action": "DoubleTap",
+                    "isComposite": false,
+                    "isPartOfComposite": false
+                },
+                {
+                    "name": "",
+                    "id": "33f859c9-e8f9-4b14-82ab-a906c2274a08",
+                    "path": "<Mouse>/leftButton",
+                    "interactions": "MultiTap",
+                    "processors": "",
+                    "groups": ";Keyboard&Mouse",
+                    "action": "DoubleTap",
+                    "isComposite": false,
+                    "isPartOfComposite": false
+                },
+                {
+                    "name": "",
+                    "id": "4fad0dc8-2fa8-4912-95bf-2e3c90934e9f",
+                    "path": "<Touchscreen>/Press",
+                    "interactions": "Tap",
+                    "processors": "",
+                    "groups": ";Touch",
+                    "action": "Tap",
+                    "isComposite": false,
+                    "isPartOfComposite": false
+                },
+                {
+                    "name": "",
+                    "id": "75f86f1a-3694-4851-bcef-69735be00030",
+                    "path": "<Mouse>/leftButton",
+                    "interactions": "Tap",
+                    "processors": "",
+                    "groups": ";Keyboard&Mouse",
+                    "action": "Tap",
+                    "isComposite": false,
+                    "isPartOfComposite": false
+                },
+                {
+                    "name": "",
+                    "id": "51bb01d4-dddb-4584-ab78-35eca3418ddb",
+                    "path": "<Pointer>/position",
+                    "interactions": "",
+                    "processors": "",
+                    "groups": ";Touch;Keyboard&Mouse",
+                    "action": "Point",
+                    "isComposite": false,
+                    "isPartOfComposite": false
+                },
+                {
+                    "name": "",
+                    "id": "3b3e4140-1509-4021-985e-86737a1b52a1",
+                    "path": "<Pointer>/press",
+                    "interactions": "",
+                    "processors": "",
+                    "groups": ";Touch;Keyboard&Mouse",
+                    "action": "Press",
+                    "isComposite": false,
+                    "isPartOfComposite": false
+                }
+            ]
+        }
+    ],
+    "controlSchemes": [
+        {
+            "name": "Keyboard&Mouse",
+            "bindingGroup": "Keyboard&Mouse",
+            "devices": [
+                {
+                    "devicePath": "<Keyboard>",
+                    "isOptional": false,
+                    "isOR": false
+                },
+                {
+                    "devicePath": "<Mouse>",
+                    "isOptional": false,
+                    "isOR": false
+                }
+            ]
+        },
+        {
+            "name": "Touch",
+            "bindingGroup": "Touch",
+            "devices": [
+                {
+                    "devicePath": "<Touchscreen>",
+                    "isOptional": false,
+                    "isOR": false
+                }
+            ]
+        }
+    ]
+}

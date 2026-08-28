@@ -1,0 +1,21 @@
+fileFormatVersion: 2
+guid: 2c88cca9e78b9473196bfdbadee1e9f7
+ScriptedImporter:
+  internalIDToNameTable: []
+  externalObjects: {}
+  serializedVersion: 2
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+  script: {fileID: 11500000, guid: 8404be70184654265930450def6a9037, type: 3}
+  generateWrapperCode: 1
+  wrapperCodePath: ../Scripts/Input/VuforiaSamplesActions.cs
+  wrapperClassName: VuforiaSamplesActions
+  wrapperCodeNamespace: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 99026
+  packageName: Vuforia Core Samples
+  packageVersion: 11.4.4
+  assetPath: Assets/Common/Settings/VuforiaSamples_Actions.inputactions
+  uploadId: 787600

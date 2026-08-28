@@ -1,0 +1,39 @@
+{
+    "name": "CommonScripts",
+    "rootNamespace": "",
+    "references": [
+        "GUID:4aa734a563557450591d3fe58a62a120",
+        "GUID:6055be8ebefd69e48b49212b09b47b2f",
+        "GUID:75469ad4d38634e559750d17036d5f7c"
+    ],
+    "includePlatforms": [
+        "Android",
+        "Editor",
+        "iOS",
+        "macOSStandalone",
+        "WSA",
+        "WindowsStandalone64"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [
+        "VUFORIA_ENABLED",
+        "INPUT_SYSTEM_IMPORTED"
+    ],
+    "versionDefines": [
+        {
+            "name": "com.ptc.vuforia.engine",
+            "expression": "1.0.0",
+            "define": "VUFORIA_ENABLED"
+        },
+        {
+            "name": "com.unity.inputsystem",
+            "expression": "1.11.0",
+            "define": "INPUT_SYSTEM_IMPORTED"
+        }
+    ],
+    "noEngineReferences": false
+}
