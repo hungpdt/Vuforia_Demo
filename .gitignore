@@ -1,0 +1,48 @@
+# Unity generated folders
+/[Ll]ibrary/
+/[Tt]emp/
+/[Oo]bj/
+/[Bb]uild/
+/[Bb]uilds/
+/[Ll]ogs/
+/[Uu]ser[Ss]ettings/
+/[Mm]emoryCaptures/
+/[Rr]ecordings/
+
+# IDE
+/.vs/
+/.idea/
+.vscode/
+/.vsconfig
+*.csproj
+*.sln
+*.slnx
+*.user
+*.userprefs
+*.pidb
+*.booproj
+*.svd
+*.pdb
+*.mdb
+*.opendb
+*.VC.db
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Local AI/tool configuration
+/.claude/
+/.utmp/
+
+# Unity crash files
+sysinfo.txt
+*.stacktrace
+
+# Keep Unity asset metadata
+!/[Aa]ssets/**/*.meta
+
+#Other files
+/QCAR/
+/FIELD-TRIP-CHECKLIST.md
