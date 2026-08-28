@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<QCARConfig>
+    <Tracking>
+        <ImageTarget name="Viture_box.Top" size="0.200000 0.149977"/>
+        <ImageTarget name="Viture_box.Left" size="0.150000 0.049980"/>
+        <ImageTarget name="Viture_box.Right" size="0.150000 0.049980"/>
+        <ImageTarget name="Viture_box.Back" size="0.200000 0.050000"/>
+        <ImageTarget name="Viture_box.Bottom" size="0.200000 0.150000"/>
+        <ImageTarget name="Viture_box.Front" size="0.200000 0.050000"/>
+        <MultiTarget name="Viture_box">
+            <Part name="Viture_box.Left" translation="-0.10000000149011612 0 0" rotation="AD: 0 1 0 -90"/>
+            <Part name="Viture_box.Right" translation="0.10000000149011612 0 0" rotation="AD: 0 1 0 90"/>
+            <Part name="Viture_box.Front" translation="0 0 0.07500000298023224" rotation="AD: 1 0 0 0"/>
+            <Part name="Viture_box.Back" translation="0 0 -0.07500000298023224" rotation="AD: 0 1 0 180"/>
+            <Part name="Viture_box.Top" translation="0 0.02500000037252903 0" rotation="AD: 1 0 0 -90"/>
+            <Part name="Viture_box.Bottom" translation="0 -0.02500000037252903 0" rotation="AD: 1 0 0 90"/>
+        </MultiTarget>
+    </Tracking>
+</QCARConfig>

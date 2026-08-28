@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<QCARInfo>
+    <TargetSet version="3.4">
+        <AreaTarget version="5.2" bbox="1.9235 -7.7038 0.7432 17.4012 6.7117 5.6252" area="13" targetId="d5a8bb123a354ec3ae1a213ecbd34a11" name="hanhlangt4" pathAuthoring="d5a8bb123a354ec3ae1a213ecbd34a11_authoring.glb" pathOcclusion="d5a8bb123a354ec3ae1a213ecbd34a11_occlusion.3dt" pathNavMesh="d5a8bb123a354ec3ae1a213ecbd34a11_navmesh.glb" cloudTarget="false" />
+    </TargetSet>
+</QCARInfo>

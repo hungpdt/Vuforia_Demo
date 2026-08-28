@@ -1,0 +1,14 @@
+fileFormatVersion: 2
+guid: 1eba00cf945a4e33924e0fe87d589d01
+DefaultImporter:
+  externalObjects: {}
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 99026
+  packageName: Vuforia Core Samples
+  packageVersion: 11.4.4
+  assetPath: Assets/StreamingAssets/Vuforia/Vuforia_Marslander_RZR_Toy_Advanced.xml
+  uploadId: 787600

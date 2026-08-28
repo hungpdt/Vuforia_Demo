@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<QCARInfo>
+<TargetSet version="27.0" toolVersion="11.4.4">
+<ModelTarget name="canteen" targetId="a556059b4d3046678bddfefd2694b512" version="14.0" toolVersion="11.4.4" bbox="-1.26971 -0.0286691 -0.424083 0.918817 2.20565 0.814662" upVector="0 1 0" previewImage="a556059b4d3046678bddfefd2694b512_preview.jpg"/>
+
+</TargetSet>
+
+<Assembly name="canteens_assembly" assemblyId="3b660ffbcc5342e2b673d6732c4fa281">
+<Part name="canteen" translation="0 0 0" rotation="AD: 0 0 1 0"/>
+<EntryPoint name="GuideView_0000" translation="0.0222838 1.04085 5.01163" rotation="AD: 0.999927 0.0306029 -0.432762 187.423" image="canteen_GuideView_0000.png" trained="no">
+
+</EntryPoint>
+
+</Assembly>
+
+</QCARInfo>

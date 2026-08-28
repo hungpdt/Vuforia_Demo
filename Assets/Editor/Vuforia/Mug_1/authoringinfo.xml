@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<QCARInfo>
+    <TargetSet version="36.0" toolVersion="v7.4.2">
+        <ModelTarget name="Mug" targetId="fea63f34abd04750839c47e6b1c7b3a6" version="14.0" toolVersion="v7.4.2" bbox="-0.0825815 -0.0728469 -0.0414152 0.0728821 0.0518881 0.0451557" trackingMode="scan" upVector="0.0 1.0 0.0" optimizeTrackingFor="default" realisticTextures="yes" />
+    </TargetSet>
+    <Assembly name="Mug" assemblyId="d6170f5ddbe74a19833e94abf677620c">
+        <Part name="Mug" translation="0 0 0" rotation="AD: 0 0 1 0" />
+        <EntryPoint name="(none)" trained="yes" />
+    </Assembly>
+</QCARInfo>

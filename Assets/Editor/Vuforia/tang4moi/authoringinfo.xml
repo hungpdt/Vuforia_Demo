@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<QCARInfo>
+    <TargetSet version="3.4">
+        <AreaTarget version="5.2" bbox="-6.6570 -0.8464 -0.4685 8.4303 5.4508 17.2174" area="21" targetId="e3e345dde5614665a423b9d721647dff" name="tang4moi" pathAuthoring="e3e345dde5614665a423b9d721647dff_authoring.glb" pathOcclusion="e3e345dde5614665a423b9d721647dff_occlusion.3dt" pathNavMesh="e3e345dde5614665a423b9d721647dff_navmesh.glb" cloudTarget="false" />
+    </TargetSet>
+</QCARInfo>

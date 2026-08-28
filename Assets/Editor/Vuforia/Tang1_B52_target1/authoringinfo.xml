@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<QCARInfo>
+    <TargetSet version="3.4">
+        <AreaTarget version="5.2" bbox="-18.8085 -0.1711 -19.4702 10.2410 4.2814 5.7284" area="497" targetId="c0a161446298467f8bb5ca81e3e7b21b" name="Tang1_B52_target1" pathAuthoring="c0a161446298467f8bb5ca81e3e7b21b_authoring.glb" pathOcclusion="c0a161446298467f8bb5ca81e3e7b21b_occlusion.3dt" pathNavMesh="c0a161446298467f8bb5ca81e3e7b21b_navmesh.glb" cloudTarget="false" />
+    </TargetSet>
+</QCARInfo>
