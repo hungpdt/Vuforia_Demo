@@ -1,0 +1,18 @@
+fileFormatVersion: 2
+guid: 60c2b8c25239a4bbd96e8fd279359ac8
+MonoImporter:
+  externalObjects: {}
+  serializedVersion: 2
+  defaultReferences: []
+  executionOrder: 0
+  icon: {instanceID: 0}
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 99026
+  packageName: Vuforia Core Samples
+  packageVersion: 11.4.4
+  assetPath: Assets/SamplesResources/SceneAssets/AreaTargets/Scripts/DeviceObserverHelper.cs
+  uploadId: 787600

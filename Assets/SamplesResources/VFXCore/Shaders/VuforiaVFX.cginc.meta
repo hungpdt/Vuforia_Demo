@@ -1,0 +1,14 @@
+fileFormatVersion: 2
+guid: a354647df3e744ffebbb9f75d0ab987c
+ShaderIncludeImporter:
+  externalObjects: {}
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 99026
+  packageName: Vuforia Core Samples
+  packageVersion: 11.4.4
+  assetPath: Assets/SamplesResources/VFXCore/Shaders/VuforiaVFX.cginc
+  uploadId: 787600
