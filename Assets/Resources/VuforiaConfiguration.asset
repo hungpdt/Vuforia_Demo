@@ -49,7 +49,7 @@ MonoBehaviour:
     thirdPartyARCoreClientDetected: 1
   playmode:
     mRecordingPath: E:/ProjectWithUnity/Asset/Record/VuforiaSession-20260827-155948.mp4
-    playModeType: 2
+    playModeType: 1
     mSimulatorInputActionAsset: {fileID: -944628639613478452, guid: eae7022f5cfd04e8189b1f372421b225,
       type: 3}
   webcam:

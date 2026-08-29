@@ -19,6 +19,10 @@ public class NavMeshManager : MonoBehaviour
     
     [Header("Navigation Line")]
     public LineRenderer NavigationLine;
+
+    [Header("NavMesh Position Sync")]
+    [Tooltip("Maximum distance used to snap the camera position onto the baked NavMesh.")]
+    [Min(0.1f)] public float NavMeshSampleDistance = 2f;
     
     Vector3 mAreaTargetOriginalPosition;
     Vector3? mCurrentDestination;
@@ -30,6 +34,11 @@ public class NavMeshManager : MonoBehaviour
     void Awake()
     {
         mAreaTargetOriginalPosition = AreaTargetTransform.transform.position;
+
+        // The camera drives this agent. Do not let NavMeshAgent write its own
+        // simulated position back over the position supplied by AR tracking.
+        NavigationAgent.updatePosition = false;
+        NavigationAgent.updateRotation = false;
     }
 
     void Update()
@@ -39,12 +48,30 @@ public class NavMeshManager : MonoBehaviour
         UpdateNavigationLinePath();
     }
 
-    void UpdateNavigationAgentPosition()
+    bool UpdateNavigationAgentPosition()
     {
-        // updates the navigation Agent's position inside the NavMesh, based on the ARCamera's current position
-        // in relation to the AreaTarget's current position
+        // Convert the live AR camera position into the static coordinate space
+        // where the NavMesh was baked.
         var arCamPositionInAreaTarget = AreaTargetTransform.InverseTransformPoint(ArCameraTransform.position);
-        NavigationAgent.transform.localPosition = arCamPositionInAreaTarget + mAreaTargetOriginalPosition;
+        var requestedPosition = arCamPositionInAreaTarget + mAreaTargetOriginalPosition;
+
+        // The camera is at eye height and can also be slightly outside the walkable
+        // polygon, so always snap the requested point onto the NavMesh first.
+        if (!NavMesh.SamplePosition(
+                requestedPosition,
+                out var hit,
+                NavMeshSampleDistance,
+                NavigationAgent.areaMask))
+        {
+            return false;
+        }
+
+        // hit.position is a world position in the static NavMesh coordinate space.
+        // Using world position (not localPosition) prevents a parent transform such
+        // as AR from being applied a second time.
+        NavigationAgent.transform.position = hit.position;
+        NavigationAgent.nextPosition = hit.position;
+        return true;
     }
     
     void UpdateNavigationLineVisibility()
@@ -72,10 +99,34 @@ public class NavMeshManager : MonoBehaviour
 
     public void NavigateTo(Transform destinationTransform)
     {
-        // position which is from the Moving AreaTarget space has to be transformed into the Static Navmesh space
+        if (destinationTransform == null || !UpdateNavigationAgentPosition())
+        {
+            Debug.LogWarning("Navigation failed: current camera position is not near the NavMesh.");
+            return;
+        }
+
+        // Convert the moving destination into the static coordinate space where
+        // the NavMesh was baked, then snap it onto a walkable polygon.
         var localPositionInAreaTarget = AreaTargetTransform.InverseTransformPoint(destinationTransform.position);
-        mCurrentDestination = localPositionInAreaTarget + mAreaTargetOriginalPosition;
-        NavigationAgent.SetDestination(mCurrentDestination.Value);
+        var requestedDestination = localPositionInAreaTarget + mAreaTargetOriginalPosition;
+
+        if (!NavMesh.SamplePosition(
+                requestedDestination,
+                out var destinationHit,
+                NavMeshSampleDistance,
+                NavigationAgent.areaMask))
+        {
+            Debug.LogWarning($"Navigation failed: destination '{destinationTransform.name}' is not near the NavMesh.");
+            return;
+        }
+
+        mCurrentDestination = destinationHit.position;
+
+        if (NavigationAgent.isOnNavMesh)
+            NavigationAgent.ResetPath();
+
+        if (!NavigationAgent.SetDestination(mCurrentDestination.Value))
+            Debug.LogWarning("Navigation failed: NavMeshAgent could not calculate a path from its current position.");
     }
 
     void DrawPath()
