@@ -27,13 +27,23 @@ public class NavMeshManager : MonoBehaviour
     Vector3 mAreaTargetOriginalPosition;
     Vector3? mCurrentDestination;
 
+    const int CORNER_BUFFER_SIZE = 64;
+    readonly Vector3[] mCornerBuffer = new Vector3[CORNER_BUFFER_SIZE];
+
     bool mHasFoundAreaTarget;
 
     const float DISTANCE_THRESHOLD = 1.5f;
 
     void Awake()
     {
-        mAreaTargetOriginalPosition = AreaTargetTransform.transform.position;
+        if (AreaTargetTransform == null || ArCameraTransform == null || NavigationAgent == null)
+        {
+            Debug.LogError("NavMeshManager is missing AreaTargetTransform, ArCameraTransform or NavigationAgent.", this);
+            enabled = false;
+            return;
+        }
+
+        mAreaTargetOriginalPosition = AreaTargetTransform.position;
 
         // The camera drives this agent. Do not let NavMeshAgent write its own
         // simulated position back over the position supplied by AR tracking.
@@ -43,13 +53,22 @@ public class NavMeshManager : MonoBehaviour
 
     void Update()
     {
-        UpdateNavigationAgentPosition();
+        if (!UpdateNavigationAgentPosition())
+        {
+            if (NavigationLine != null)
+                NavigationLine.enabled = false;
+            return;
+        }
+
         UpdateNavigationLineVisibility();
         UpdateNavigationLinePath();
     }
 
     bool UpdateNavigationAgentPosition()
     {
+        if (AreaTargetTransform == null || ArCameraTransform == null || NavigationAgent == null)
+            return false;
+
         // Convert the live AR camera position into the static coordinate space
         // where the NavMesh was baked.
         var arCamPositionInAreaTarget = AreaTargetTransform.InverseTransformPoint(ArCameraTransform.position);
@@ -76,6 +95,9 @@ public class NavMeshManager : MonoBehaviour
     
     void UpdateNavigationLineVisibility()
     {
+        if (NavigationLine == null)
+            return;
+
         NavigationLine.enabled = mHasFoundAreaTarget && mCurrentDestination.HasValue;
 
         if (NavigationLine.enabled)
@@ -91,7 +113,7 @@ public class NavMeshManager : MonoBehaviour
     
     void UpdateNavigationLinePath()
     {
-        if (NavigationLine.enabled && !NavigationAgent.pathPending)
+        if (NavigationLine != null && NavigationLine.enabled && NavigationAgent != null && !NavigationAgent.pathPending)
         {
             DrawPath();
         }
@@ -99,10 +121,17 @@ public class NavMeshManager : MonoBehaviour
 
     public void NavigateTo(Transform destinationTransform)
     {
+        TryNavigateTo(destinationTransform);
+    }
+
+    public bool TryNavigateTo(Transform destinationTransform)
+    {
+        ClearNavigation();
+
         if (destinationTransform == null || !UpdateNavigationAgentPosition())
         {
             Debug.LogWarning("Navigation failed: current camera position is not near the NavMesh.");
-            return;
+            return false;
         }
 
         // Convert the moving destination into the static coordinate space where
@@ -117,7 +146,7 @@ public class NavMeshManager : MonoBehaviour
                 NavigationAgent.areaMask))
         {
             Debug.LogWarning($"Navigation failed: destination '{destinationTransform.name}' is not near the NavMesh.");
-            return;
+            return false;
         }
 
         mCurrentDestination = destinationHit.position;
@@ -126,17 +155,43 @@ public class NavMeshManager : MonoBehaviour
             NavigationAgent.ResetPath();
 
         if (!NavigationAgent.SetDestination(mCurrentDestination.Value))
+        {
             Debug.LogWarning("Navigation failed: NavMeshAgent could not calculate a path from its current position.");
+            mCurrentDestination = null;
+            return false;
+        }
+
+        return true;
+    }
+
+    public void ClearNavigation()
+    {
+        mCurrentDestination = null;
+
+        if (NavigationAgent != null && NavigationAgent.isOnNavMesh)
+            NavigationAgent.ResetPath();
+
+        if (NavigationLine != null)
+        {
+            NavigationLine.enabled = false;
+            NavigationLine.positionCount = 0;
+        }
     }
 
     void DrawPath()
     {
-        NavigationLine.positionCount = NavigationAgent.path.corners.Length;
-        // we have to transform the positions from the Static Navmesh space back to the Moving AreaTarget space
-        var transformedNavigationCorners = new Vector3[NavigationLine.positionCount];
-        for (int i = 0; i < transformedNavigationCorners.Length; i++)
-            transformedNavigationCorners[i] = AreaTargetTransform.TransformPoint(NavigationAgent.path.corners[i] - mAreaTargetOriginalPosition);
-        NavigationLine.SetPositions(transformedNavigationCorners);
+        if (NavigationLine == null || NavigationAgent == null || AreaTargetTransform == null)
+            return;
+
+        var cornerCount = NavigationAgent.path.GetCornersNonAlloc(mCornerBuffer);
+        NavigationLine.positionCount = cornerCount;
+
+        // Transform from the static baked NavMesh space back to the moving Area Target space.
+        for (var i = 0; i < cornerCount; i++)
+        {
+            var worldCorner = AreaTargetTransform.TransformPoint(mCornerBuffer[i] - mAreaTargetOriginalPosition);
+            NavigationLine.SetPosition(i, worldCorner);
+        }
     }
     
     public void OnAreaTargetFound()

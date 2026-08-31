@@ -3,8 +3,8 @@ using UnityEngine.AI;
 using Vuforia;
 
 /// <summary>
-/// Reads the active NavMesh path and converts its first meaningful segment into
-/// a simple 2D turn instruction.
+/// Owns the navigation state for the current POI and converts a NavMesh path
+/// into stable, screen-space turn guidance.
 /// </summary>
 [DisallowMultipleComponent]
 public sealed class TurnGuidanceController : MonoBehaviour
@@ -19,6 +19,16 @@ public sealed class TurnGuidanceController : MonoBehaviour
         UTurn
     }
 
+    public enum NavigationState
+    {
+        Idle,
+        Calculating,
+        Navigating,
+        TrackingLost,
+        NoRoute,
+        Arrived
+    }
+
     [Header("Navigation references")]
     [SerializeField] NavMeshManager navMeshManager;
     [SerializeField] NavMeshAgent navigationAgent;
@@ -27,29 +37,60 @@ public sealed class TurnGuidanceController : MonoBehaviour
     [SerializeField] ObserverBehaviour trackingObserver;
     [SerializeField] GuidanceHUD hud;
 
-    [Header("Day 1 tuning")]
-    [SerializeField, Min(0.05f)] float refreshInterval = 0.2f;
+    [Header("Guidance tuning")]
+    [SerializeField, Min(0.05f)] float refreshInterval = 0.25f;
     [SerializeField, Min(0.01f)] float minimumCornerDistance = 0.25f;
     [SerializeField, Range(0f, 90f)] float straightAngle = 25f;
     [SerializeField, Range(1f, 120f)] float slightTurnAngle = 65f;
     [SerializeField, Range(1f, 179f)] float turnAngle = 135f;
+    [SerializeField, Min(0f)] float maneuverConfirmationTime = 0.45f;
+
+    [Header("Route recovery")]
+    [SerializeField, Min(0.1f)] float deviationDistance = 1.25f;
+    [SerializeField, Min(0f)] float deviationConfirmationTime = 1f;
+    [SerializeField, Min(0f)] float rerouteCooldown = 2f;
+    [SerializeField, Min(0.1f)] float pathCalculationTimeout = 3f;
+
+    [Header("Tracking and arrival")]
+    [SerializeField, Min(0f)] float trackingLostDelay = 0.75f;
+    [SerializeField, Min(0f)] float trackingRecoveryDelay = 0.5f;
+    [SerializeField, Min(0f)] float arrivalConfirmationTime = 0.5f;
     [SerializeField] bool assumeTrackingInEditor = true;
+
+    const int CornerBufferSize = 64;
+
+    readonly Vector3[] cornerBuffer = new Vector3[CornerBufferSize];
 
     POIDestination currentDestination;
     Vector3 areaTargetOriginalPosition;
+    NavigationState state = NavigationState.Idle;
+    Maneuver stableManeuver;
+    Maneuver candidateManeuver;
     float nextRefreshTime;
+    float pathRequestTime;
+    float nextAllowedRerouteTime;
+    float deviationStartedTime = -1f;
+    float arrivalStartedTime = -1f;
+    float candidateManeuverStartedTime;
+    float rawTrackingChangedTime;
+    bool hasStableManeuver;
+    bool hasCandidateManeuver;
+    bool rawTracked;
     bool isTracked;
 
     public POIDestination CurrentDestination => currentDestination;
+    public NavigationState State => state;
     public bool IsTracked => isTracked;
 
     void Awake()
     {
-        if (areaTargetTransform != null)
-            areaTargetOriginalPosition = areaTargetTransform.position;
+        CacheAreaTargetOrigin();
 
         if (Application.isEditor && assumeTrackingInEditor)
+        {
+            rawTracked = true;
             isTracked = true;
+        }
     }
 
     void OnEnable()
@@ -57,7 +98,11 @@ public sealed class TurnGuidanceController : MonoBehaviour
         if (trackingObserver != null)
         {
             trackingObserver.OnTargetStatusChanged += OnTargetStatusChanged;
-            UpdateTracking(trackingObserver.TargetStatus.Status);
+            SetRawTracking(IsUsableTracking(trackingObserver.TargetStatus.Status), true);
+        }
+        else if (!(Application.isEditor && assumeTrackingInEditor))
+        {
+            SetRawTracking(false, true);
         }
     }
 
@@ -69,11 +114,14 @@ public sealed class TurnGuidanceController : MonoBehaviour
 
     void Update()
     {
-        if (Time.unscaledTime < nextRefreshTime)
+        var now = Time.unscaledTime;
+        UpdateStableTracking(now);
+
+        if (now < nextRefreshTime)
             return;
 
-        nextRefreshTime = Time.unscaledTime + refreshInterval;
-        RefreshGuidance();
+        nextRefreshTime = now + refreshInterval;
+        RefreshGuidance(now);
     }
 
     public void SetDestination(POIDestination destination)
@@ -84,70 +132,118 @@ public sealed class TurnGuidanceController : MonoBehaviour
             return;
         }
 
-        if (navMeshManager == null || navigationAgent == null)
+        if (!HasRequiredNavigationReferences())
         {
             hud?.ShowMessage("Navigation chưa được cấu hình", destination.DisplayName);
             return;
         }
 
         currentDestination = destination;
-        navMeshManager.NavigateTo(destination.Anchor);
-        nextRefreshTime = 0f;
-        hud?.ShowMessage("Đang tính đường...", destination.DisplayName);
+        ResetTransientState(true);
+
+        if (!isTracked)
+        {
+            SetState(NavigationState.TrackingLost);
+            hud?.ShowMessage("Không xác định được vị trí", destination.DisplayName);
+            return;
+        }
+
+        RequestRoute(false);
     }
 
     public void ClearDestination()
     {
         currentDestination = null;
-        if (navigationAgent != null && navigationAgent.isOnNavMesh)
-            navigationAgent.ResetPath();
+        ResetTransientState(true);
+        navMeshManager?.ClearNavigation();
+        SetState(NavigationState.Idle);
         hud?.Hide();
     }
 
-    void RefreshGuidance()
+    void RefreshGuidance(float now)
     {
         if (currentDestination == null)
         {
+            SetState(NavigationState.Idle);
             hud?.Hide();
             return;
         }
 
         if (!isTracked)
         {
-            hud?.Hide();
+            SetState(NavigationState.TrackingLost);
+            hud?.ShowMessage("Không xác định được vị trí", currentDestination.DisplayName);
             return;
         }
 
-        if (arCameraTransform == null || areaTargetTransform == null || navigationAgent == null)
+        if (!HasRequiredNavigationReferences())
         {
             hud?.ShowMessage("Navigation chưa được cấu hình", currentDestination.DisplayName);
             return;
         }
 
-        if (Vector3.Distance(arCameraTransform.position, currentDestination.Anchor.position)
-            <= currentDestination.ArrivalRadius)
+        if (state == NavigationState.Arrived)
         {
             hud?.ShowMessage("Đã đến nơi", currentDestination.DisplayName);
             return;
         }
 
-        if (!navigationAgent.isOnNavMesh || navigationAgent.pathPending)
+        if (ConfirmArrival(now))
         {
-            hud?.ShowMessage("Đang tính đường...", currentDestination.DisplayName);
+            SetState(NavigationState.Arrived);
+            navMeshManager.ClearNavigation();
+            hud?.ShowMessage("Đã đến nơi", currentDestination.DisplayName);
             return;
         }
 
-        var path = navigationAgent.path;
-        var corners = path.corners;
-        if (path.status != NavMeshPathStatus.PathComplete || corners == null || corners.Length < 2)
+        if (state == NavigationState.NoRoute)
         {
             hud?.ShowMessage("Không tìm thấy đường", currentDestination.DisplayName);
             return;
         }
 
-        if (!TryGetNextWorldCorner(corners, out var nextCorner))
+        if (!navigationAgent.isOnNavMesh)
         {
-            hud?.ShowMessage("Đi thẳng tới điểm đến", currentDestination.DisplayName);
+            SetNoRoute();
+            return;
+        }
+
+        if (navigationAgent.pathPending)
+        {
+            SetState(NavigationState.Calculating);
+            if (now - pathRequestTime >= pathCalculationTimeout)
+                SetNoRoute();
+            else
+                hud?.ShowMessage("Đang tính đường...", currentDestination.DisplayName);
+            return;
+        }
+
+        var path = navigationAgent.path;
+        if (path == null || path.status != NavMeshPathStatus.PathComplete)
+        {
+            SetNoRoute();
+            return;
+        }
+
+        var cornerCount = path.GetCornersNonAlloc(cornerBuffer);
+        if (cornerCount < 2)
+        {
+            SetNoRoute();
+            return;
+        }
+
+        SetState(NavigationState.Navigating);
+
+        if (ShouldReroute(cornerBuffer, cornerCount, now))
+        {
+            RequestRoute(true);
+            return;
+        }
+
+        if (!TryGetNextWorldCorner(cornerBuffer, cornerCount, out var nextCorner, out var nextCornerIndex))
+        {
+            hud?.Show(Maneuver.Straight, "Đi thẳng tới điểm đến", currentDestination.DisplayName,
+                CalculateRemainingDistance(cornerBuffer, cornerCount));
             return;
         }
 
@@ -157,41 +253,262 @@ public sealed class TurnGuidanceController : MonoBehaviour
             return;
 
         var signedAngle = Vector3.SignedAngle(cameraForward, routeDirection, Vector3.up);
-        var maneuver = ClassifyAngle(signedAngle, straightAngle, slightTurnAngle, turnAngle);
-        hud?.Show(maneuver, InstructionFor(maneuver), currentDestination.DisplayName);
+        var rawManeuver = ClassifyAngle(signedAngle, straightAngle, slightTurnAngle, turnAngle);
+        var maneuver = StabilizeManeuver(rawManeuver, now);
+        var distanceToTurn = CalculateDistanceToCorner(cornerBuffer, cornerCount, nextCornerIndex);
+        hud?.Show(maneuver, InstructionFor(maneuver), currentDestination.DisplayName, distanceToTurn);
     }
 
-    bool TryGetNextWorldCorner(Vector3[] corners, out Vector3 worldCorner)
+    void RequestRoute(bool isReroute)
     {
-        for (var i = 0; i < corners.Length; i++)
+        if (currentDestination == null || currentDestination.Anchor == null || navMeshManager == null)
+        {
+            SetNoRoute();
+            return;
+        }
+
+        ResetRouteDetection();
+        SetState(NavigationState.Calculating);
+        pathRequestTime = Time.unscaledTime;
+
+        if (isReroute)
+            nextAllowedRerouteTime = pathRequestTime + rerouteCooldown;
+        else
+            ResetManeuverFilter();
+
+        hud?.ShowMessage(isReroute ? "Đang cập nhật đường..." : "Đang tính đường...",
+            currentDestination.DisplayName);
+
+        if (!navMeshManager.TryNavigateTo(currentDestination.Anchor))
+            SetNoRoute();
+    }
+
+    void SetNoRoute()
+    {
+        SetState(NavigationState.NoRoute);
+        ResetRouteDetection();
+        navMeshManager?.ClearNavigation();
+        hud?.ShowMessage("Không tìm thấy đường", currentDestination != null ? currentDestination.DisplayName : "");
+    }
+
+    bool ConfirmArrival(float now)
+    {
+        if (currentDestination == null || currentDestination.Anchor == null || arCameraTransform == null)
+            return false;
+
+        var offset = Vector3.ProjectOnPlane(
+            currentDestination.Anchor.position - arCameraTransform.position,
+            Vector3.up);
+
+        if (offset.magnitude > currentDestination.ArrivalRadius)
+        {
+            arrivalStartedTime = -1f;
+            return false;
+        }
+
+        if (arrivalStartedTime < 0f)
+            arrivalStartedTime = now;
+
+        return now - arrivalStartedTime >= arrivalConfirmationTime;
+    }
+
+    bool ShouldReroute(Vector3[] corners, int cornerCount, float now)
+    {
+        if (now < nextAllowedRerouteTime || navigationAgent == null)
+        {
+            deviationStartedTime = -1f;
+            return false;
+        }
+
+        var distance = DistanceToPath(navigationAgent.transform.position, corners, cornerCount);
+        if (distance <= deviationDistance)
+        {
+            deviationStartedTime = -1f;
+            return false;
+        }
+
+        if (deviationStartedTime < 0f)
+            deviationStartedTime = now;
+
+        return now - deviationStartedTime >= deviationConfirmationTime;
+    }
+
+    bool TryGetNextWorldCorner(
+        Vector3[] corners,
+        int cornerCount,
+        out Vector3 worldCorner,
+        out int cornerIndex)
+    {
+        if (corners == null || areaTargetTransform == null || arCameraTransform == null)
+        {
+            worldCorner = default;
+            cornerIndex = -1;
+            return false;
+        }
+
+        for (var i = 0; i < cornerCount; i++)
         {
             var candidate = areaTargetTransform.TransformPoint(corners[i] - areaTargetOriginalPosition);
-            if (Vector3.ProjectOnPlane(candidate - arCameraTransform.position, Vector3.up).magnitude
-                >= minimumCornerDistance)
-            {
-                worldCorner = candidate;
-                return true;
-            }
+            var horizontalDistance = Vector3.ProjectOnPlane(
+                candidate - arCameraTransform.position,
+                Vector3.up).magnitude;
+
+            if (horizontalDistance < minimumCornerDistance)
+                continue;
+
+            worldCorner = candidate;
+            cornerIndex = i;
+            return true;
         }
 
         worldCorner = default;
+        cornerIndex = -1;
         return false;
+    }
+
+    float CalculateDistanceToCorner(Vector3[] corners, int cornerCount, int targetCornerIndex)
+    {
+        if (navigationAgent == null || corners == null || cornerCount == 0 || targetCornerIndex < 0)
+            return 0f;
+
+        var lastPoint = navigationAgent.transform.position;
+        var distance = 0f;
+        var finalIndex = Mathf.Min(targetCornerIndex, cornerCount - 1);
+
+        for (var i = 0; i <= finalIndex; i++)
+        {
+            distance += Vector3.Distance(lastPoint, corners[i]);
+            lastPoint = corners[i];
+        }
+
+        return distance;
+    }
+
+    float CalculateRemainingDistance(Vector3[] corners, int cornerCount)
+    {
+        return CalculateDistanceToCorner(corners, cornerCount, cornerCount - 1);
+    }
+
+    Maneuver StabilizeManeuver(Maneuver rawManeuver, float now)
+    {
+        if (!hasStableManeuver)
+        {
+            stableManeuver = rawManeuver;
+            hasStableManeuver = true;
+            hasCandidateManeuver = false;
+            return stableManeuver;
+        }
+
+        if (rawManeuver == stableManeuver)
+        {
+            hasCandidateManeuver = false;
+            return stableManeuver;
+        }
+
+        if (!hasCandidateManeuver || candidateManeuver != rawManeuver)
+        {
+            candidateManeuver = rawManeuver;
+            candidateManeuverStartedTime = now;
+            hasCandidateManeuver = true;
+            return stableManeuver;
+        }
+
+        if (now - candidateManeuverStartedTime >= maneuverConfirmationTime)
+        {
+            stableManeuver = candidateManeuver;
+            hasCandidateManeuver = false;
+        }
+
+        return stableManeuver;
     }
 
     void OnTargetStatusChanged(ObserverBehaviour behaviour, TargetStatus status)
     {
-        UpdateTracking(status.Status);
+        SetRawTracking(IsUsableTracking(status.Status), false);
     }
 
-    void UpdateTracking(Status status)
+    void SetRawTracking(bool tracked, bool initialize)
     {
-        isTracked = status == Status.TRACKED || status == Status.EXTENDED_TRACKED;
-
         if (Application.isEditor && assumeTrackingInEditor)
+            tracked = true;
+
+        if (!initialize && rawTracked == tracked)
+            return;
+
+        rawTracked = tracked;
+        rawTrackingChangedTime = Time.unscaledTime;
+
+        if (initialize && tracked)
             isTracked = true;
+    }
+
+    void UpdateStableTracking(float now)
+    {
+        if (rawTracked == isTracked)
+            return;
+
+        var requiredDelay = rawTracked ? trackingRecoveryDelay : trackingLostDelay;
+        if (now - rawTrackingChangedTime < requiredDelay)
+            return;
+
+        isTracked = rawTracked;
+        ResetRouteDetection();
 
         if (!isTracked)
-            hud?.Hide();
+        {
+            SetState(currentDestination == null ? NavigationState.Idle : NavigationState.TrackingLost);
+            if (currentDestination != null)
+                hud?.ShowMessage("Không xác định được vị trí", currentDestination.DisplayName);
+            return;
+        }
+
+        if (currentDestination != null && state != NavigationState.Arrived)
+            RequestRoute(true);
+    }
+
+    bool HasRequiredNavigationReferences()
+    {
+        return navMeshManager != null
+               && navigationAgent != null
+               && areaTargetTransform != null
+               && arCameraTransform != null;
+    }
+
+    void CacheAreaTargetOrigin()
+    {
+        if (areaTargetTransform != null)
+            areaTargetOriginalPosition = areaTargetTransform.position;
+    }
+
+    void ResetTransientState(bool resetRerouteCooldown)
+    {
+        ResetManeuverFilter();
+        ResetRouteDetection();
+        arrivalStartedTime = -1f;
+        pathRequestTime = 0f;
+        if (resetRerouteCooldown)
+            nextAllowedRerouteTime = 0f;
+    }
+
+    void ResetManeuverFilter()
+    {
+        hasStableManeuver = false;
+        hasCandidateManeuver = false;
+    }
+
+    void ResetRouteDetection()
+    {
+        deviationStartedTime = -1f;
+    }
+
+    void SetState(NavigationState nextState)
+    {
+        state = nextState;
+    }
+
+    static bool IsUsableTracking(Status status)
+    {
+        return status == Status.TRACKED || status == Status.EXTENDED_TRACKED;
     }
 
     public static Maneuver ClassifyAngle(float signedAngle, float straight, float slight, float turn)
@@ -204,6 +521,31 @@ public sealed class TurnGuidanceController : MonoBehaviour
         if (absoluteAngle < turn)
             return signedAngle > 0f ? Maneuver.Right : Maneuver.Left;
         return Maneuver.UTurn;
+    }
+
+    public static float DistanceToPath(Vector3 point, Vector3[] corners, int cornerCount)
+    {
+        if (corners == null || cornerCount <= 0)
+            return float.PositiveInfinity;
+
+        var validCount = Mathf.Min(cornerCount, corners.Length);
+        if (validCount == 1)
+            return Vector3.Distance(point, corners[0]);
+
+        var nearestSqrDistance = float.PositiveInfinity;
+        for (var i = 0; i < validCount - 1; i++)
+        {
+            var start = corners[i];
+            var segment = corners[i + 1] - start;
+            var segmentSqrLength = segment.sqrMagnitude;
+            var t = segmentSqrLength > Mathf.Epsilon
+                ? Mathf.Clamp01(Vector3.Dot(point - start, segment) / segmentSqrLength)
+                : 0f;
+            var nearestPoint = start + segment * t;
+            nearestSqrDistance = Mathf.Min(nearestSqrDistance, (point - nearestPoint).sqrMagnitude);
+        }
+
+        return Mathf.Sqrt(nearestSqrDistance);
     }
 
     public static string InstructionFor(Maneuver maneuver)
@@ -234,9 +576,7 @@ public sealed class TurnGuidanceController : MonoBehaviour
         arCameraTransform = arCamera;
         trackingObserver = observer;
         hud = guidanceHud;
-
-        if (areaTargetTransform != null)
-            areaTargetOriginalPosition = areaTargetTransform.position;
+        CacheAreaTargetOrigin();
     }
 #endif
 }

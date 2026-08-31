@@ -12,10 +12,10 @@ using UnityEngine.UI;
 using Vuforia;
 
 /// <summary>
-/// Idempotent scene installer for the Day 1 guidance vertical slice.
+/// Idempotent scene installer for the Day 1-2 guidance vertical slice.
 /// It intentionally only touches Tang1_B52 and the four existing POI buttons.
 /// </summary>
-public static class Day1NavigationInstaller
+public static class NavigationGuidanceInstaller
 {
     const string ScenePath = "Assets/Scenes/Tang1_B52.unity";
 
@@ -27,7 +27,7 @@ public static class Day1NavigationInstaller
         new DestinationSetup("POI_Dinosaur", "Dinosour", "dinosaur", "Dinosaur")
     };
 
-    [MenuItem("Tools/Vuforia Demo/Install Day 1 Guidance")]
+    [MenuItem("Tools/Vuforia Demo/Install Day 1-2 Guidance")]
     public static void InstallFromMenu()
     {
         Install();
@@ -84,7 +84,7 @@ public static class Day1NavigationInstaller
 
         ValidateScene();
         AssetDatabase.SaveAssets();
-        Debug.Log("DAY1_GUIDANCE_INSTALL_OK: Tang1_B52 has 4 editable POIs, 4 button bindings and a 2D guidance HUD.");
+        Debug.Log("DAY2_GUIDANCE_INSTALL_OK: Tang1_B52 has editable POIs, stable route guidance and a distance HUD.");
     }
 
     static GuidanceHUD CreateOrUpdateHud(Scene scene)
@@ -105,7 +105,7 @@ public static class Day1NavigationInstaller
         rect.anchorMax = new Vector2(0.5f, 1f);
         rect.pivot = new Vector2(0.5f, 1f);
         rect.anchoredPosition = new Vector2(0f, -36f);
-        rect.sizeDelta = new Vector2(480f, 210f);
+        rect.sizeDelta = new Vector2(480f, 230f);
 
         var background = GetOrAdd<UnityEngine.UI.Image>(root);
         background.color = new Color(0.035f, 0.055f, 0.09f, 0.88f);
@@ -121,17 +121,22 @@ public static class Day1NavigationInstaller
         arrow.color = new Color(0.25f, 0.85f, 1f, 1f);
         arrow.fontStyle = FontStyles.Bold;
 
-        var instruction = CreateOrUpdateText(root.transform, "Instruction", new Vector2(0f, -96f), new Vector2(440f, 54f), 36f);
+        var instruction = CreateOrUpdateText(root.transform, "Instruction", new Vector2(0f, -88f), new Vector2(440f, 48f), 34f);
         instruction.text = "Đi thẳng";
         instruction.color = Color.white;
         instruction.fontStyle = FontStyles.Bold;
 
-        var destination = CreateOrUpdateText(root.transform, "Destination", new Vector2(0f, -154f), new Vector2(440f, 38f), 24f);
+        var distance = CreateOrUpdateText(root.transform, "Distance", new Vector2(0f, -136f), new Vector2(440f, 34f), 24f);
+        distance.text = "sau 8 m";
+        distance.color = new Color(0.25f, 0.85f, 1f, 1f);
+        distance.fontStyle = FontStyles.Bold;
+
+        var destination = CreateOrUpdateText(root.transform, "Destination", new Vector2(0f, -178f), new Vector2(440f, 34f), 22f);
         destination.text = "Điểm đến";
         destination.color = new Color(0.78f, 0.84f, 0.92f, 1f);
 
         var hud = existing != null ? existing : Undo.AddComponent<GuidanceHUD>(root);
-        hud.Configure(canvasGroup, arrow, instruction, destination);
+        hud.Configure(canvasGroup, arrow, instruction, distance, destination);
         EditorUtility.SetDirty(hud);
         return hud;
     }
@@ -252,7 +257,8 @@ public static class Day1NavigationInstaller
 
         Require(hud, "GuidanceHUD");
         ValidateAngleClassification();
-        Debug.Log("DAY1_GUIDANCE_VALIDATE_OK: scene wiring and turn thresholds are valid.");
+        ValidateDistanceToPath();
+        Debug.Log("DAY2_GUIDANCE_VALIDATE_OK: scene wiring, turn thresholds and deviation math are valid.");
     }
 
     static void ValidateAngleClassification()
@@ -270,6 +276,14 @@ public static class Day1NavigationInstaller
         var actual = TurnGuidanceController.ClassifyAngle(angle, 25f, 65f, 135f);
         if (actual != expected)
             throw new InvalidOperationException($"Angle {angle} expected {expected}, got {actual}.");
+    }
+
+    static void ValidateDistanceToPath()
+    {
+        var corners = new[] { Vector3.zero, new Vector3(0f, 0f, 10f) };
+        var distance = TurnGuidanceController.DistanceToPath(new Vector3(2f, 0f, 5f), corners, corners.Length);
+        if (!Mathf.Approximately(distance, 2f))
+            throw new InvalidOperationException($"Expected path deviation 2, got {distance}.");
     }
 
     static T FindOne<T>(Scene scene, string label) where T : UnityEngine.Object

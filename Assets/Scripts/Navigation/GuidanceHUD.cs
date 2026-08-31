@@ -2,7 +2,7 @@ using TMPro;
 using UnityEngine;
 
 /// <summary>
-/// Minimal screen-space HUD for the Day 1 navigation vertical slice.
+/// Null-safe screen-space HUD for turn guidance and navigation states.
 /// </summary>
 [DisallowMultipleComponent]
 public sealed class GuidanceHUD : MonoBehaviour
@@ -10,6 +10,7 @@ public sealed class GuidanceHUD : MonoBehaviour
     [SerializeField] CanvasGroup root;
     [SerializeField] TMP_Text arrowText;
     [SerializeField] TMP_Text instructionText;
+    [SerializeField] TMP_Text distanceText;
     [SerializeField] TMP_Text destinationText;
 
     public bool IsVisible => root != null && root.alpha > 0.01f;
@@ -19,7 +20,11 @@ public sealed class GuidanceHUD : MonoBehaviour
         Hide();
     }
 
-    public void Show(TurnGuidanceController.Maneuver maneuver, string instruction, string destinationName)
+    public void Show(
+        TurnGuidanceController.Maneuver maneuver,
+        string instruction,
+        string destinationName,
+        float distanceMeters = -1f)
     {
         SetVisible(true);
 
@@ -29,8 +34,15 @@ public sealed class GuidanceHUD : MonoBehaviour
             arrowText.rectTransform.localRotation = Quaternion.Euler(0f, 0f, RotationFor(maneuver));
         }
 
+        var formattedDistance = distanceMeters >= 0f ? FormatDistance(distanceMeters) : string.Empty;
+
         if (instructionText != null)
-            instructionText.text = instruction;
+            instructionText.text = distanceText == null && formattedDistance.Length > 0
+                ? instruction + " • " + formattedDistance
+                : instruction;
+
+        if (distanceText != null)
+            distanceText.text = formattedDistance;
 
         if (destinationText != null)
             destinationText.text = string.IsNullOrWhiteSpace(destinationName)
@@ -47,6 +59,9 @@ public sealed class GuidanceHUD : MonoBehaviour
 
         if (instructionText != null)
             instructionText.text = message;
+
+        if (distanceText != null)
+            distanceText.text = string.Empty;
 
         if (destinationText != null)
             destinationText.text = string.IsNullOrWhiteSpace(destinationName)
@@ -82,12 +97,29 @@ public sealed class GuidanceHUD : MonoBehaviour
         }
     }
 
+    static string FormatDistance(float distanceMeters)
+    {
+        if (float.IsNaN(distanceMeters) || float.IsInfinity(distanceMeters) || distanceMeters < 0f)
+            return string.Empty;
+
+        if (distanceMeters >= 1000f)
+            return $"sau {distanceMeters / 1000f:0.#} km";
+
+        return $"sau {Mathf.Max(1, Mathf.CeilToInt(distanceMeters))} m";
+    }
+
 #if UNITY_EDITOR
-    public void Configure(CanvasGroup canvasGroup, TMP_Text arrow, TMP_Text instruction, TMP_Text destination)
+    public void Configure(
+        CanvasGroup canvasGroup,
+        TMP_Text arrow,
+        TMP_Text instruction,
+        TMP_Text distance,
+        TMP_Text destination)
     {
         root = canvasGroup;
         arrowText = arrow;
         instructionText = instruction;
+        distanceText = distance;
         destinationText = destination;
     }
 #endif
