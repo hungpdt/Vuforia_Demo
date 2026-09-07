@@ -54,13 +54,18 @@ public class ArFieldHud : MonoBehaviour
 
     void OnGUI()
     {
-        var pad = Screen.width * 0.02f;
-        var w = Screen.width - pad * 2f;
+        // Screen.safeArea uses a bottom-left origin, while IMGUI uses a
+        // top-left origin. Convert it once so every HUD element stays clear of
+        // the Dynamic Island, notch and home indicator in any orientation.
+        var safeArea = GuiSafeArea();
+        var pad = safeArea.width * 0.02f;
+        var x = safeArea.xMin + pad;
+        var w = safeArea.width - pad * 2f;
 
         var bigFont = Mathf.RoundToInt(UiBase * 0.030f);
         var smallFont = Mathf.RoundToInt(UiBase * 0.019f);
 
-        var y = pad;
+        var y = safeArea.yMin + pad;
 
         // ---- verdict banner -------------------------------------------------
         var verdict = mDiag.Verdict();
@@ -75,7 +80,7 @@ public class ArFieldHud : MonoBehaviour
         banner.normal.textColor = VerdictColor(verdict);
 
         var bannerH = banner.CalcHeight(new GUIContent(verdict), w);
-        GUI.Box(new Rect(pad, y, w, bannerH), verdict, banner);
+        GUI.Box(new Rect(x, y, w, bannerH), verdict, banner);
         y += bannerH + pad * 0.4f;
 
         // ---- one-line status ------------------------------------------------
@@ -95,7 +100,7 @@ public class ArFieldHud : MonoBehaviour
                                      ArFieldLog.ErrorCount > 0 ? "ERR " + ArFieldLog.ErrorCount : "");
 
         var headlineH = line.CalcHeight(new GUIContent(headline), w);
-        GUI.Box(new Rect(pad, y, w, headlineH), headline, line);
+        GUI.Box(new Rect(x, y, w, headlineH), headline, line);
         y += headlineH + pad * 0.4f;
 
         // ---- detail block ---------------------------------------------------
@@ -103,7 +108,7 @@ public class ArFieldHud : MonoBehaviour
         {
             var details = BuildDetails();
             var detailH = line.CalcHeight(new GUIContent(details), w);
-            GUI.Box(new Rect(pad, y, w, detailH), details, line);
+            GUI.Box(new Rect(x, y, w, detailH), details, line);
             y += detailH + pad * 0.4f;
         }
 
@@ -125,7 +130,7 @@ public class ArFieldHud : MonoBehaviour
             var text = "ERROR x" + ArFieldLog.ErrorCount + " (cham de an)\n" + ArFieldLog.LastError;
             var errH = errStyle.CalcHeight(new GUIContent(text), w);
 
-            if (GUI.Button(new Rect(pad, y, w, errH), text, errStyle))
+            if (GUI.Button(new Rect(x, y, w, errH), text, errStyle))
                 ArFieldLog.ClearErrors();
 
             y += errH + pad * 0.4f;
@@ -135,10 +140,24 @@ public class ArFieldHud : MonoBehaviour
         if (Time.realtimeSinceStartup < mToastUntil)
         {
             var toastH = line.CalcHeight(new GUIContent(mToast), w);
-            GUI.Box(new Rect(pad, y, w, toastH), mToast, line);
+            GUI.Box(new Rect(x, y, w, toastH), mToast, line);
         }
 
-        DrawButtons(pad, smallFont);
+        DrawButtons(safeArea, pad, smallFont);
+    }
+
+    static Rect GuiSafeArea()
+    {
+        var safeArea = Screen.safeArea;
+
+        // An empty safe area can briefly be reported during device startup.
+        if (safeArea.width < 1f || safeArea.height < 1f)
+            safeArea = new Rect(0f, 0f, Screen.width, Screen.height);
+
+        return new Rect(safeArea.xMin,
+                        Screen.height - safeArea.yMax,
+                        safeArea.width,
+                        safeArea.height);
     }
 
     string BuildDetails()
@@ -177,15 +196,16 @@ public class ArFieldHud : MonoBehaviour
         return sb.ToString();
     }
 
-    void DrawButtons(float pad, int fontSize)
+    void DrawButtons(Rect safeArea, float pad, int fontSize)
     {
         var btnH = UiBase * 0.085f;
-        var btnW = (Screen.width - pad * 5f) / 4f;
-        var y = Screen.height - btnH - pad;
+        var btnW = (safeArea.width - pad * 5f) / 4f;
+        var bottomBarReserved = UiBase * 0.12f;
+        var y = safeArea.yMax - btnH - pad - bottomBarReserved;
 
         var style = new GUIStyle(GUI.skin.button) { fontSize = fontSize };
 
-        var x = pad;
+        var x = safeArea.xMin + pad;
 
         // RECORD / STOP share one slot: only one of them is ever valid.
         GUI.enabled = Recorder != null;
