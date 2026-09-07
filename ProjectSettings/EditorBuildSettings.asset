@@ -14,13 +14,13 @@ EditorBuildSettings:
   - enabled: 0
     path: Assets/Scenes/MultiArea.unity
     guid: 6583a55e6e946de41a3e47c6e2dcb061
-  - enabled: 1
+  - enabled: 0
     path: Assets/Scenes/Navigation.unity
     guid: 10aa33ce0fc18c84499dd951c484a939
   - enabled: 0
     path: Assets/Scenes/Navigation_2_floor.unity
     guid: ed3e00da185e3e84a9d25649bbdc0164
-  - enabled: 0
+  - enabled: 1
     path: Assets/Scenes/Tang1_B52.unity
     guid: 9045d2681e7b5494ea52aff953032bb4
   m_configObjects:
