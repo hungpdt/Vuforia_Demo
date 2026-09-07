@@ -30,7 +30,7 @@ public sealed class TurnGuidanceController : MonoBehaviour
     }
 
     [Header("Navigation references")]
-    [SerializeField] NavMeshManager navMeshManager;
+    [SerializeField] MuseumNavMeshManager navMeshManager;
     [SerializeField] NavMeshAgent navigationAgent;
     [SerializeField] Transform areaTargetTransform;
     [SerializeField] Transform arCameraTransform;
@@ -84,6 +84,7 @@ public sealed class TurnGuidanceController : MonoBehaviour
 
     void Awake()
     {
+        SanitizeConfiguration();
         CacheAreaTargetOrigin();
 
         if (Application.isEditor && assumeTrackingInEditor)
@@ -104,6 +105,11 @@ public sealed class TurnGuidanceController : MonoBehaviour
         {
             SetRawTracking(false, true);
         }
+    }
+
+    void OnValidate()
+    {
+        SanitizeConfiguration();
     }
 
     void OnDisable()
@@ -424,6 +430,9 @@ public sealed class TurnGuidanceController : MonoBehaviour
 
     void OnTargetStatusChanged(ObserverBehaviour behaviour, TargetStatus status)
     {
+        if (!isActiveAndEnabled)
+            return;
+
         SetRawTracking(IsUsableTracking(status.Status), false);
     }
 
@@ -478,6 +487,23 @@ public sealed class TurnGuidanceController : MonoBehaviour
     {
         if (areaTargetTransform != null)
             areaTargetOriginalPosition = areaTargetTransform.position;
+    }
+
+    void SanitizeConfiguration()
+    {
+        refreshInterval = Mathf.Max(0.05f, refreshInterval);
+        minimumCornerDistance = Mathf.Max(0.01f, minimumCornerDistance);
+        straightAngle = Mathf.Clamp(straightAngle, 0f, 90f);
+        slightTurnAngle = Mathf.Clamp(slightTurnAngle, straightAngle, 120f);
+        turnAngle = Mathf.Clamp(turnAngle, slightTurnAngle, 179f);
+        maneuverConfirmationTime = Mathf.Max(0f, maneuverConfirmationTime);
+        deviationDistance = Mathf.Max(0.1f, deviationDistance);
+        deviationConfirmationTime = Mathf.Max(0f, deviationConfirmationTime);
+        rerouteCooldown = Mathf.Max(0f, rerouteCooldown);
+        pathCalculationTimeout = Mathf.Max(0.1f, pathCalculationTimeout);
+        trackingLostDelay = Mathf.Max(0f, trackingLostDelay);
+        trackingRecoveryDelay = Mathf.Max(0f, trackingRecoveryDelay);
+        arrivalConfirmationTime = Mathf.Max(0f, arrivalConfirmationTime);
     }
 
     void ResetTransientState(bool resetRerouteCooldown)
@@ -563,7 +589,7 @@ public sealed class TurnGuidanceController : MonoBehaviour
 
 #if UNITY_EDITOR
     public void Configure(
-        NavMeshManager manager,
+        MuseumNavMeshManager manager,
         NavMeshAgent agent,
         Transform areaTarget,
         Transform arCamera,

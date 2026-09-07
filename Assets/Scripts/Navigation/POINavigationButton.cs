@@ -15,6 +15,12 @@ public sealed class POINavigationButton : MonoBehaviour
     public POIDestination Destination => destination;
     public TurnGuidanceController GuidanceController => guidanceController;
 
+    void Reset()
+    {
+        button = GetComponent<Button>();
+        guidanceController = FindFirstObjectByType<TurnGuidanceController>();
+    }
+
     void Awake()
     {
         if (button == null)
@@ -27,7 +33,10 @@ public sealed class POINavigationButton : MonoBehaviour
             button = GetComponent<Button>();
 
         if (button != null)
+        {
+            button.onClick.RemoveListener(Navigate);
             button.onClick.AddListener(Navigate);
+        }
 
         RefreshInteractable();
     }

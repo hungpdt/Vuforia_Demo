@@ -1,14 +1,22 @@
 using TMPro;
 using UnityEngine;
+using UnityEngine.UI;
 
 /// <summary>
 /// Null-safe screen-space HUD for turn guidance and navigation states.
 /// </summary>
 [DisallowMultipleComponent]
+[RequireComponent(typeof(CanvasGroup))]
 public sealed class GuidanceHUD : MonoBehaviour
 {
     [SerializeField] CanvasGroup root;
-    [SerializeField] TMP_Text arrowText;
+
+    [Header("Arrow")]
+    [SerializeField] Image arrowImage;
+    [SerializeField] bool invertLeftAndRight;
+    [SerializeField, Range(-180f, 180f)] float rotationOffset;
+
+    [Header("Text")]
     [SerializeField] TMP_Text instructionText;
     [SerializeField] TMP_Text distanceText;
     [SerializeField] TMP_Text destinationText;
@@ -17,7 +25,17 @@ public sealed class GuidanceHUD : MonoBehaviour
 
     void Awake()
     {
+        if (root == null)
+            root = GetComponent<CanvasGroup>();
+
         Hide();
+    }
+
+    void OnValidate()
+    {
+        if (root == null)
+            root = GetComponent<CanvasGroup>();
+
     }
 
     public void Show(
@@ -28,18 +46,22 @@ public sealed class GuidanceHUD : MonoBehaviour
     {
         SetVisible(true);
 
-        if (arrowText != null)
+        if (arrowImage != null)
         {
-            arrowText.text = "\u2191";
-            arrowText.rectTransform.localRotation = Quaternion.Euler(0f, 0f, RotationFor(maneuver));
+            arrowImage.enabled = arrowImage.sprite != null;
+            var rotation = RotationFor(maneuver);
+            if (invertLeftAndRight && maneuver != TurnGuidanceController.Maneuver.UTurn)
+                rotation = -rotation;
+            arrowImage.rectTransform.localRotation = Quaternion.Euler(0f, 0f, rotation + rotationOffset);
         }
 
         var formattedDistance = distanceMeters >= 0f ? FormatDistance(distanceMeters) : string.Empty;
+        var safeInstruction = string.IsNullOrWhiteSpace(instruction) ? "Đang cập nhật..." : instruction;
 
         if (instructionText != null)
             instructionText.text = distanceText == null && formattedDistance.Length > 0
-                ? instruction + " • " + formattedDistance
-                : instruction;
+                ? safeInstruction + " • " + formattedDistance
+                : safeInstruction;
 
         if (distanceText != null)
             distanceText.text = formattedDistance;
@@ -54,11 +76,11 @@ public sealed class GuidanceHUD : MonoBehaviour
     {
         SetVisible(true);
 
-        if (arrowText != null)
-            arrowText.text = string.Empty;
+        if (arrowImage != null)
+            arrowImage.enabled = false;
 
         if (instructionText != null)
-            instructionText.text = message;
+            instructionText.text = string.IsNullOrWhiteSpace(message) ? "Đang cập nhật..." : message;
 
         if (distanceText != null)
             distanceText.text = string.Empty;
@@ -111,13 +133,13 @@ public sealed class GuidanceHUD : MonoBehaviour
 #if UNITY_EDITOR
     public void Configure(
         CanvasGroup canvasGroup,
-        TMP_Text arrow,
+        Image arrow,
         TMP_Text instruction,
         TMP_Text distance,
         TMP_Text destination)
     {
         root = canvasGroup;
-        arrowText = arrow;
+        arrowImage = arrow;
         instructionText = instruction;
         distanceText = distance;
         destinationText = destination;

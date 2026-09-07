@@ -52,23 +52,38 @@ public static class ArDebugSetup
 
         // Prefer the references the runtime actually uses, so the HUD reports
         // the same objects the navigation drives rather than lookalikes.
-        var manager = Object.FindFirstObjectByType<NavMeshManager>();
-        if (manager != null)
+        var museumManager = Object.FindFirstObjectByType<MuseumNavMeshManager>();
+        if (museumManager != null)
         {
-            diag.Agent = manager.NavigationAgent;
-            diag.NavigationLine = manager.NavigationLine;
+            diag.Agent = museumManager.NavigationAgent;
+            diag.NavigationLine = museumManager.NavigationLine;
 
-            if (manager.AreaTargetTransform != null)
-                diag.NavRoot = manager.AreaTargetTransform;
+            if (museumManager.AreaTargetTransform != null)
+                diag.NavRoot = museumManager.AreaTargetTransform;
 
-            if (manager.ArCameraTransform != null)
-                diag.ArCamera = manager.ArCameraTransform;
+            if (museumManager.ArCameraTransform != null)
+                diag.ArCamera = museumManager.ArCameraTransform;
         }
         else
         {
-            diag.Agent = Object.FindFirstObjectByType<NavMeshAgent>();
-            diag.NavigationLine = Object.FindFirstObjectByType<LineRenderer>();
-            Debug.LogWarning("ArDebugSetup: no NavMeshManager found - agent and line were guessed.");
+            var manager = Object.FindFirstObjectByType<NavMeshManager>();
+            if (manager != null)
+            {
+                diag.Agent = manager.NavigationAgent;
+                diag.NavigationLine = manager.NavigationLine;
+
+                if (manager.AreaTargetTransform != null)
+                    diag.NavRoot = manager.AreaTargetTransform;
+
+                if (manager.ArCameraTransform != null)
+                    diag.ArCamera = manager.ArCameraTransform;
+            }
+            else
+            {
+                diag.Agent = Object.FindFirstObjectByType<NavMeshAgent>();
+                diag.NavigationLine = Object.FindFirstObjectByType<LineRenderer>();
+                Debug.LogWarning("ArDebugSetup: no NavMesh manager found - agent and line were guessed.");
+            }
         }
 
         hud.Recorder = recorder;
